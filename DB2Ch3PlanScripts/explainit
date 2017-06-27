@@ -1,0 +1,1 @@
+cat head.sql tmp.sql tail.sql | db2 +c +p -t

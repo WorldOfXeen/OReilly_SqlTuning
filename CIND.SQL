@@ -1,0 +1,35 @@
+--Create indexes script for Oracle indexes, all examples
+CREATE INDEX Employee_Manager_ID ON Employees(Manager_ID);
+CREATE INDEX Employee_Last_Name ON Employees(Last_Name);
+CREATE INDEX Employee_Location_ID ON Employees(Location_ID);
+CREATE INDEX Employee_Department_ID ON Employees(Department_ID);
+CREATE INDEX Employee_Hire_Date ON Employees(Hire_Date);
+CREATE UNIQUE INDEX Employee_PKey ON Employees(Employee_ID);
+CREATE UNIQUE INDEX Department_PKey ON Departments(Department_ID);
+CREATE UNIQUE INDEX Location_PKey ON Locations(Location_ID);
+CREATE INDEX Location_Description ON Locations(Description);
+CREATE UNIQUE INDEX Wage_Payment_PKey ON Wage_Payments(Wage_Payment_ID);
+CREATE INDEX Wage_Payment_Employee_ID ON Wage_Payments(Employee_ID);
+CREATE INDEX Employee_First_Name ON Employees(First_Name);
+CREATE INDEX Employee_Nickname ON Employees(Nickname);
+CREATE UNIQUE INDEX Order_Detail_PKey on Order_Details(Order_Detail_ID);
+CREATE UNIQUE INDEX Order_PKey on Orders(Order_ID);
+CREATE INDEX Order_Customer_ID on Orders(Customer_ID);
+CREATE INDEX Order_Status_Code on Orders(Status_Code);
+CREATE INDEX Order_Region_ID on Orders(Region_ID);
+CREATE INDEX Order_Order_Date on Orders(Order_Date);
+CREATE UNIQUE INDEX Customer_PKey on Customers(Customer_ID);
+CREATE INDEX Customer_Customer_Name on Customers(Customer_Name);
+CREATE INDEX Order_Detail_Order_ID on Order_Details(Order_ID);
+CREATE INDEX Person_Phone_Number on Persons(Phone_Number);
+CREATE UNIQUE INDEX Address_PKey on Addresses(Address_ID);
+CREATE UNIQUE INDEX Region_PKey on Regions(Region_ID);
+CREATE INDEX Region_Name on Regions(Name);
+CREATE INDEX Address_ZIP_Code on Addresses(ZIP_Code);
+CREATE INDEX Order_Ship_Date ON Orders(Ship_Date) PARALLEL 10;
+ALTER INDEX Order_Ship_Date PARALLEL 1;
+CREATE UNIQUE INDEX Product_PKey on Products(Product_ID);
+CREATE UNIQUE INDEX Shipment_PKey on Shipments(Shipment_ID);
+CREATE UNIQUE INDEX Code_Translation_PKey
+on Code_Translations(Code_Type, Code);
+CREATE INDEX Customer_Phone_Number on Customers(Phone_Number);

@@ -1,0 +1,901 @@
+This is pretty much all the SQL and SQL snippets from the book.
+This comes from an earlier draft, so you'll find some minor differences, such as insignificant differences in case and in a few other details, but it should save you a lot of typing if you find that you want to flesh out one of the hypothetical examples with real data in a real database. For the end-to-end example in Appendix B I include all the SQL to create the tables and indexes, and to populate them with data, separately. For cases where I show reusable scripts, such as head.sql, tail.sql, and index.sql in chapter 3, I've generally included these as separate files in the same zip file.
+
+I actually created tables to make all these examples parse against a real database, though, mostly to achieve consistency between table and column names throughout the book. In a few cases, however, I might not have reflected those changes (which I made in the book) back to this source file - refer to the book if something doesn't work.
+
+RETIREMENT_DATE between '2002/01/01' and '2003/01/01'
+LAST_NAME='Smith' 
+(LAST_NAME, FIRST_NAME)
+
+SELECT count(*) FROM ORDERS WHERE UNPAID_FLAG='Y';
+SELECT COUNT(*) FROM ORDERS WHERE UNPAID_FLAG='Y';
+SELECT COUNT(*) FROM ORDERS;
+SELECT count(*) FROM ORDER_DETAILS WHERE ORDER_ID=143;
+SELECT 1/(1+COUNT(DISTINCT ORDER_ID)) FROM ORDER_DETAILS;
+SELECT count(*) FROM CUSTOMERS WHERE LAST_NAME = 'SMITH';
+SELECT SUM(COUNT(*)*COUNT(*))/(SUM(COUNT(*))*SUM(COUNT(*))) 
+FROM CUSTOMERS GROUP BY LAST_NAME;
+select count(*) from employees where (Salary > 4000 AND Salary < 8000) 
+and UPPER(LAST_NAME) LIKE 'SMITH%';
+
+select count(*) from 
+customers with AREA_CODE, PHONE_NUMBER, LAST_NAME,  and FIRST_NAME 
+WHERE AREA_CODE=916 AND UPPER(FIRST_NAME)='IVA'
+
+SELECT SUM(COUNT(*)*COUNT(*))/(SUM(COUNT(*))*SUM(COUNT(*))+1) 
+FROM CUSTOMERS GROUP BY AREA_CODE;
+
+SELECT SUM(COUNT(*)*COUNT(*))/(SUM(COUNT(*))*SUM(COUNT(*))+1) 
+FROM CUSTOMERS GROUP BY FIRST_NAME;
+
+select count(*) from customers wHERE AREA_CODE=415 AND FIRST_NAME='BRUCE';
+
+SELECT count(*) FROM ORDERS, ORDER_DETAILS;
+
+SELECT count(*) FROM ORDERS O, ORDER_DETAILS D WHERE O.ORDER_ID=D.ORDER_ID;
+
+--xxxx new style does not work in 8.0 xxxxx---
+
+SELECT count(*) FROM ORDERS O 
+              INNER JOIN ORDER_DETAILS D ON O.ORDER_ID=D.ORDER_ID;
+
+       WHERE E.DEPARTMENT_ID=D.DEPARTMENT_ID(+);
+SELECT D.DEPARTMENT_NAME FROM EMPLOYEES E, DEPARTMENTS D
+
+--xxxx new style does not work in 8.0 xxxxx---
+
+SELECT  D.DEPARTMENT_NAME 
+       FROM EMPLOYEES E 
+            LEFT OUTER JOIN DEPARTMENTS D 
+                            ON E.DEPARTMENT_ID=D.DEPARTMENT_ID;
+
+Ch3
+CREATE TABLE PLAN_TABLE2(
+STATEMENT_ID                             VARCHAR2(30),
+ TIMESTAMP                                DATE,
+ REMARKS                                  VARCHAR2(80),
+ OPERATION                                VARCHAR2(30),
+ OPTIONS                                  VARCHAR2(30),
+ OBJECT_NODE                              VARCHAR2(128),
+ OBJECT_OWNER                             VARCHAR2(30),
+ OBJECT_NAME                              VARCHAR2(30),
+ OBJECT_INSTANCE                          NUMBER(38),
+ OBJECT_TYPE                              VARCHAR2(30),
+ OPTIMIZER                                VARCHAR2(255),
+ SEARCH_COLUMNS                           NUMBER(38),
+ ID                                       NUMBER(38),
+ PARENT_ID                                NUMBER(38),
+ POSITION                                 NUMBER(38),
+ COST                                     NUMBER(38),
+ CARDINALITY                              NUMBER(38),
+ BYTES                                    NUMBER(38),
+ OTHER_TAG                                VARCHAR2(255),
+ OTHER                                    LONG);
+
+SELECT LPAD(' ',2*(LEVEL-1))||OPERATION||' '||OPTIONS||' '|| 
+DECODE(OBJECT_INSTANCE, NULL, OBJECT_NAME,
+                        TO_CHAR(OBJECT_INSTANCE)||'*'|| OBJECT_NAME) PLAN
+FROM PLAN_TABLE
+START WITH ID=0
+CONNECT BY PRIOR ID = PARENT_ID
+ORDER BY ID;
+
+SELECT Last_Name, First_Name, Salary FROM Employees
+WHERE Manager_ID=137
+ORDER BY Last_Name, First_Name;
+
+delete from plan_table;
+EXPLAIN PLAN FOR SELECT Last_Name, First_Name, Salary FROM Employees
+WHERE Manager_ID=137
+ORDER BY Last_Name, First_Name;
+SELECT LPAD(' ',2*(LEVEL-1))||OPERATION||' '||OPTIONS||' '|| 
+DECODE(OBJECT_INSTANCE, NULL, OBJECT_NAME,
+                        TO_CHAR(OBJECT_INSTANCE)||'*'|| OBJECT_NAME) PLAN
+FROM PLAN_TABLE
+START WITH ID=0
+CONNECT BY PRIOR ID = PARENT_ID
+ORDER BY ID;
+rollback;
+
+-- File called head.sql:
+set pagesize 999
+set feedback off
+DELETE FROM PLAN_TABLE;
+EXPLAIN PLAN FOR
+
+-- File called tail.sql:
+SELECT LPAD(' ',2*(LEVEL-1))||OPERATION||' '||OPTIONS||' '|| 
+DECODE(OBJECT_INSTANCE, NULL, OBJECT_NAME,
+                        TO_CHAR(OBJECT_INSTANCE)||'*'|| OBJECT_NAME) PLAN
+FROM PLAN_TABLE
+START WITH ID=0
+CONNECT BY PRIOR ID = PARENT_ID
+ORDER BY ID;
+ROLLBACK;
+
+-- File called ex.sql:
+!cat head.sql tmp.sql tail.sql > tmp2.sql
+spool tmp.out
+@tmp2
+spool off
+
+-- File called tmp.sql
+SELECT /*+ RULE */ E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Locations LE, Locations LM, Employees M, Employees E
+WHERE E.Last_Name = :1
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID
+AND UPPER(LE.Description)=:2;
+
+Drop indexes
+
+-- File called tmp.sql
+SELECT /*+ ORDERED USE_HASH(M LE LM) */ E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Employees E, Employees M, Locations LM, Locations LE,
+WHERE E.Last_Name = :1
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID
+AND UPPER(LE.Description)=:2;
+the index "EMPLOYEE_LAST_NAME
+
+-- File called index.sql
+set pagesize 999
+SELECT INDEX_NAME, COLUMN_NAME
+FROM USER_IND_COLUMNS WHERE TABLE_NAME = UPPER('&&1')
+ORDER BY INDEX_NAME, COLUMN_POSITION;
+
+SELECT /*+ RULE */ E.First_Name, E.Nickname, E.Last_Name,
+E.Phone_Number, L.Description
+FROM Employees E, Locations L
+WHERE (E.First_Name='Kathy' OR E.Nickname='Kathy')
+AND E.Location_ID=L.Location_ID
+AND EXISTS (SELECT null FROM Wage_Payments P
+            WHERE P.Employee_ID=E.Employee_ID
+            AND P.Payment_Date > sysdate-31);
+
+Place indexes on:
+* Employees(First_Name)
+* Employees(Nickname)
+* Locations(Location_ID)
+* Wage_Payments(Employee_ID) 
+
+Ch4:
+
+select /*+ rule */ count(*) from Persons P where P.Phone_Number=5551212;
+select /*+ rule */ count(*) from Persons P, Contacts C
+ where P.Phone_Number=C.Contact_Number; 
+
+TO_NUMBER(P.Phone_Number)=5551212
+
+P.Phone_Number=C.Contact_Number
+
+select /*+ rule */ count(*) from Persons P where 
+P.Phone_Number=P.Area_Code||'5551212';
+
+SELECT count(*) FROM Order_Details D
+WHERE 
+(D.Order_ID=:1 or :1 IS NULL)
+;
+
+SELECT Order_ID FROM Order_Details D
+WHERE D.Order_ID=:1
+AND :1 IS NOT NULL
+UNION ALL
+SELECT Order_ID FROM Order_Details D
+WHERE :1 IS NULL
+;
+
+SELECT O.Order_ID FROM Order_Details D, Customers C, Orders O
+WHERE O.Order_ID=D.Order_ID AND O.Customer_ID=C.Customer_ID
+AND D.Order_ID=:1
+AND :1 IS NOT NULL
+AND (C.Customer_Name=:2 OR :2 IS NULL)
+UNION ALL
+SELECT O.Order_ID FROM Order_Details D, Customers C, Orders O
+WHERE O.Order_ID=D.Order_ID AND O.Customer_ID=C.Customer_ID
+AND :1 IS NULL
+AND :2 IS NOT NULL
+AND C.Customer_Name=:2
+UNION ALL
+SELECT O.Order_ID FROM Order_Details D, Customers C, Orders O
+WHERE O.Order_ID=D.Order_ID AND O.Customer_ID=C.Customer_ID
+AND :1 IS NULL
+AND :2 IS NULL
+;
+
+O.Status_Code||''='CL'
+
+O.Region_ID+0=137
+
+NVL(O.Order_Date,O.Order_Date)=:1
+
+O.Region_ID+0=R.Region_ID
+
+NVL(O.Region_ID,O.Region_ID)=R.Region_ID
+
+SELECT ... FROM Employees E, Locations L
+WHERE E.Location_ID=L.Location_ID(+)
+
+SELECT count(*) FROM Employees E, Locations L
+WHERE E.Location_ID=L.Location_ID(+)
+AND L.Description='Headquarters'
+
+SELECT ... FROM Employees E, Locations L
+WHERE E.Location_ID=L.Location_ID
+AND L.Description='Headquarters'
+
+SELECT ... FROM Employees E, Locations L, Addresses A
+WHERE E.Location_ID=L.Location_ID
+AND E.Location_ID=A.Address_ID
+AND A.ZIP_Code=95628
+
+SELECT ... FROM Employees E, Locations L, Addresses A
+WHERE E.Location_ID=L.Location_ID
+AND E.Location_ID=A.Address_ID
+AND L.Location_ID=A.Address_ID
+AND A.ZIP_Code=95628
+
+SELECT E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Location LE, Location LM, Employees M, Employees E
+WHERE E.Last_Name = 'Johnson'
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID
+AND LE.Description='Dallas'
+
+SELECT E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Locations LE, Locations LM, Employees M, Employees E
+WHERE E.Last_Name = 'Johnson'
+AND E.Manager_ID+0*LE.Location_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID 
+AND LE.Description='Dallas'
+
+SELECT count(*) FROM Departments D 
+WHERE EXISTS (SELECT NULL FROM Employees E
+                          WHERE E.Department_ID=D.Department_ID);
+
+SELECT count(*) FROM Departments D
+WHERE D.Department_ID IN (SELECT E.Department_ID FROM Employees E);
+
+SELECT count(*) FROM Departments D 
+WHERE EXISTS (SELECT NULL FROM Employees E
+                          WHERE E.Department_ID=D.Department_ID+0);
+
+SELECT count(*) FROM Departments D
+WHERE D.Department_ID IN (SELECT E.Department_ID+0 FROM Employees E);
+
+SELECT /*+ first_rows ordered use_nl(c r) push_subq */
+COUNT(*) FROM Orders O, Customers C, Regions R
+WHERE O.Status_Code='OP'
+AND O.Customer_ID=C.Customer_ID
+AND C.Customer_Type_Code='GOV'
+AND C.Region_ID=R.Region_ID
+AND EXISTS (SELECT null FROM Order_Details OD
+            WHERE O.Order_ID=OD.Order_ID
+            AND OD.Shipped_Flag='Y');
+
+SELECT /*+ first_rows ordered use_nl(c r) push_subq */
+COUNT(*) FROM Orders O, Customers C, Regions R
+WHERE O.Status_Code='OP'
+AND O.Customer_ID=C.Customer_ID
+AND C.Customer_Type_Code='GOV'
+AND C.Region_ID=R.Region_ID
+AND EXISTS (SELECT null FROM Order_Details OD
+            WHERE O.Order_ID+0*C.Customer_ID=OD.Order_ID
+            AND OD.Shipped_Flag='Y');
+
+SELECT COUNT(*) FROM Orders WHERE Status_Code = 'OP';
+
+CREATE INDEX Order_Ship_Date ON Orders(Ship_Date) PARALLEL 10;
+
+ALTER INDEX Order_Ship_Date PARALLEL 1;
+
+SELECT Index_Name from ALL_INDEXES WHERE Degree!=1;
+
+ALTER SESSION SET OPTIMIZER_MODE=<Your_Choice>;
+
+SELECT VALUE FROM V$PARAMETER WHERE NAME = 'optimizer_mode';
+
+SELECT POSITION FROM PLAN_TABLE WHERE ID=0;
+
+SELECT /*+ RULE */ E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Location LM, Employees M, Location LE, Employees E
+WHERE E.Last_Name = 'Johnson'
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID 
+AND LE.Description='Dallas'
+
+-- File called explain_schema.sql
+set pagesize 9999
+set linesize 160
+set heading off
+set feedback off
+spool tmp_anal.sql
+SELECT 'ANALYZE TABLE '||TABLE_NAME||' ESTIMATE STATISTICS SAMPLE 20000 ROWS;'
+FROM USER_TABLES;
+spool off
+spool tmp_anal.out
+@tmp_anal
+spool off
+
+EXECUTE DBMS_STATS.GATHER_TABLE_STATS ('Appl_Prod','Orders',METHOD_OPT => 'FOR COLUMNS SIZE 254 Status_Code'); 
+
+ANALYZE TABLE Orders COMPUTE STATISTICS FOR COLUMNS Status_Code SIZE 254; 
+
+SELECT E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Location LM, Employees M, Location LE, Employees E
+WHERE E.Hire_Date > :1
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID;
+
+SELECT * FROM Employees E
+WHERE Hire_Date>=TO_CHAR('2003-04-01','YYYY-MM-DD')
+AND Hire_Date< TO_CHAR('2003-05-01','YYYY-MM-DD')
+ORDER BY Hire_Date DESC
+
+
+SELECT /*+ INDEX_DESC(E Employee_Hire_Date) */ * FROM Employees E
+WHERE Hire_Date>=TO_CHAR('2003-04-01','YYYY-MM-DD')
+AND Hire_Date< TO_CHAR('2003-05-01','YYYY-MM-DD')
+AND ROWNUM=1
+
+SELECT ... FROM Orders O, Customers C, Regions R
+WHERE O.Status_Code='OP'
+AND O.Customer_ID=C.Customer_ID
+AND C.Customer_Type_Code='GOV'
+AND C.Region_ID=R.Region_ID
+AND EXISTS (SELECT null FROM Order_Details OD
+            WHERE O.Order_ID+0*C.Customer_ID=OD.Order_ID
+            AND OD.Shipped_Flag='Y')
+
+SELECT /*+ PUSH_SUBQ */ ... FROM Orders O, Customers C, Regions R
+WHERE O.Status_Code='OP'
+AND O.Customer_ID=C.Customer_ID
+AND C.Customer_Type_Code='GOV'
+AND C.Region_ID=R.Region_ID
+AND EXISTS (SELECT null FROM Order_Details OD
+            WHERE O.Order_ID+0*C.Customer_ID=OD.Order_ID
+            AND OD.Shipped_Flag='Y')
+
+SELECT /*+ ORDERED USE_NL(M LM) USE_HASH(LE) INDEX(E EMPLOYEE_LAST_NAME) 
+INDEX(LE Location_Description) INDEX(M EMPLOYEE_PKEY) INDEX(LM LOCATION_PKEY) */ E.First_Name, E.Last_Name, E.Salary, LE.Description,
+M.First_Name, M.Last_Name, LM.Description
+FROM Employees E, Location LE, Employees M, Location LM
+WHERE E.Last_Name = 'Johnson'
+AND E.Manager_ID=M.Employee_ID
+AND E.Location_ID=LE.Location_ID
+AND M.Location_ID=LM.Location_ID 
+AND LE.Description='Dallas'
+
+Ch5:
+
+SELECT D.DEPARTMENT_NAME, E.EMPLOYEE_LAST_NAME, E,EMPLOYEE_FIRST_NAME
+FROM EMPLOYEES E, DEPARTMENTS D
+WHERE E.DEPARTMENT_ID=D.DEPARTMENT_ID
+AND E.EXEMPT_FLAG='Y'
+AND D.US_BASED_FLAG='Y';
+
+SELECT COUNT(*), COUNT(DISTINCT DEPARTMENT_ID) FROM EMPLOYEES;
+
+SELECT COUNT(*) FROM EMPLOYEES WHERE EXEMPT_FLAG='Y';
+
+SELECT COUNT(*) FROM EMPLOYEES;
+
+SELECT COUNT(*) FROM DEPARTMENTS WHERE US_BASED_FLAG='Y';
+
+SELECT COUNT(*) FROM DEPARTMENTS;
+
+SELECT COUNT(*) FROM EMPLOYEES E, DEPARTMENTS D 
+    WHERE E.DEPARTMENT_ID=D.DEPARTMENT_ID;
+
+
+
+SELECT c.phone_number, c.honorific, c.first_name, c.last_name, c.suffix,
+c.address_id, a.address_id, a.street_address_line1,
+a.street_address_line2, a.city_name, a.state_abbreviation,
+a.ZIP_code, od.deferred_shipment_date, od.item_count,
+odt.text, ot.text, p.product_description, s.shipment_date 
+FROM orders o, order_details od, products p, customers c, shipments s, 
+addresses a, code_translations odt, code_translations ot
+WHERE upper(c.last_name) like 'x'||'%'
+and upper(c.first_name) like 'y'||'%'
+and od.order_id = o.order_id
+and o.customer_id = c.customer_id
+and od.product_id = p.product_id(+)
+and od.shipment_id = s.shipment_id(+)
+and s.address_id = a.address_id(+)
+and o.status_code = ot.code
+and ot.code_type = 'ORDER_STATUS'
+and od.status_code = odt.code
+and odt.code_type = 'ORDER_DETAIL_STATUS'
+and o.order_date > sysdate - 366
+ORDER BY c.customer_id, o.order_id desc, s.shipment_id, od.order_detail_id;
+
+SELECT SUM(COUNT(*)*COUNT(*))/(SUM(COUNT(*))*SUM(COUNT(*))) 
+     FROM CUSTOMERS GROUP BY 
+     UPPER(SUBSTR(FIRST_NAME, 1, 3)), UPPER(SUBSTR(LAST_NAME, 1, 3));
+
+SELECT COUNT(*) FROM CUSTOMERS;
+
+SELECT COUNT(*) FROM ORDERS WHERE order_date > SYSDATE - 366;
+
+SELECT COUNT(*) FROM ORDERS;
+
+SELECT COUNT(*) FROM ORDERS o, CUSTOMERS c 
+     WHERE o.customer_id = c.customer_id;
+
+SELECT COUNT(*) FROM ORDER_DETAILS;
+
+SELECT COUNT(*) FROM ORDERS o, ORDER_DETAILS od 
+     WHERE od.order_id = o.order_id;
+
+SELECT COUNT(*) FROM CODE_TRANSLATIONS 
+     WHERE code_type = 'ORDER_STATUS';
+
+SELECT COUNT(*) FROM ORDERS o, CODE_TRANSLATIONS ot
+     WHERE o.status_code = ot.code and code_type = 'ORDER_STATUS';
+
+SELECT COUNT(*) FROM CODE_TRANSLATIONS 
+     WHERE code_type = 'ORDER_DETAIL_STATUS';
+
+SELECT COUNT(*) FROM ORDER_DETAILS od, CODE_TRANSLATIONS odt
+     WHERE od.status_code = odt.code and code_type = 'ORDER_DETAIL_STATUS';
+
+SELECT COUNT(*) D, COUNT(FOREIGN_KEY_COLUMN) F FROM DETAIL_TABLE;
+SELECT COUNT(*) M FROM MASTER_TABLE;
+
+SELECT count(*)
+FROM CUSTOMERS C, ZIP_CODES Z, ZIP_DEMOGRAPHICS D, REGIONS R
+WHERE C.ZIP_CODE=Z.ZIP_CODE
+AND Z.DEMOGRAPHIC_ID=D.DEMOGRAPHIC_ID
+AND Z.REGION_ID=R.REGION_ID
+AND C.ACTIVE_FLAG='Y'
+AND C.PROFILED_FLAG='N'
+AND R.NAME='SOUTHWEST'
+AND D.NAME IN ('YUPPIE', 'OLDMONEY');
+
+SELECT COUNT(*) FROM CUSTOMERS C WHERE ACTIVE_FLAG='Y' AND PROFILED_FLAG='N';
+
+SELECT count(*)
+FROM REGIONS R, ZIP_CODES Z, CUSTOMERS C, CUSTOMER_MAILINGS CM,
+MAILINGS M, CATALOGS CAT, BRANDS B
+WHERE R.REGION_ID(+)=Z.REGION_ID
+AND Z.ZIP_CODE(+)=C.ZIP_CODE
+AND C.CUSTOMER_ID=CM.CUSTOMER_ID
+AND CM.MAILING_ID=M.MAILING_ID
+AND M.CATALOG_ID=CAT.CATALOG_ID
+AND CAT.BRAND_ID=B.BRAND_ID
+AND B.NAME='OhSoGreen'
+AND M.MAILING_DATE >= SYSDATE-365
+;
+
+SELECT COUNT(*) FROM MAILINGS M WHERE MAILING_DATE >= SYSDATE-365;
+
+SELECT COUNT(*)
+FROM CODE_TRANSLATIONS SPCT, CODE_TRANSLATIONS TRCT, CODE_TRANSLATIONS CTCT,
+PRODUCTS P, PRODUCT_LINES PL, INVENTORY_VALUES IV, BRANDS B,
+PRODUCT_LOCATIONS LOC, WAREHOUSES W, REGIONS R, INVENTORY_TAXING_ENTITIES ITX,
+INVENTORY_TAX_RATES ITXR, CONSIGNEES C
+WHERE W.REGION_ID=R.REGION_ID
+AND LOC.WAREHOUSE_ID=W.WAREHOUSE_ID
+AND W.INVENTORY_TAXING_ENTITY_ID=ITX.INVENTORY_TAXING_ENTITY_ID
+AND ITX.INVENTORY_TAXING_ENTITY_ID= ITXR.INVENTORY_TAXING_ENTITY_ID
+AND ITXR.EFFECTIVE_START_DATE <= SYSDATE
+AND ITXR.EFFECTIVE_END_DATE > SYSDATE
+AND ITXR.RATE>0
+AND P.PRODUCT_ID=LOC.PRODUCT_ID
+AND LOC.QUANTITY>0
+AND P.PRODUCT_LINE_ID=PL.PRODUCT_LINE_ID(+)
+AND P.PRODUCT_ID=IV.PRODUCT_ID
+AND P.TAXABLE_INVENTORY_FLAG='Y'
+AND P.CONSIGNEE_ID=C.CONSIGNEE_ID(+)
+AND P.STRATEGIC_PRODUCT_CODE=SPCT.CODE
+AND SPCT.CODE_TYPE='StrategicProduct'
+AND P.TURNOVER_RATE_CODE=TRCT.CODE
+AND TRCT.CODE_TYPE='TurnoverRate'
+AND P.CONSIGNMENT_TYPE_CODE=CTCT.CODE
+AND CTCT.CODE_TYPE='ConsignmentType'
+AND IV.EFFECTIVE_START_DATE <= SYSDATE
+AND IV.EFFECTIVE_END_DATE > SYSDATE
+AND IV.UNIT_VALUE>0
+AND P.BRAND_ID=B.BRAND_ID
+AND B.NAME='2Much$'
+AND ITX.TAX_DAY_OF_YEAR='DEC31';
+
+SELECT COUNT(*) FROM INVENTORY_TAXING_ENTITIES ITX 
+     WHERE ITX.TAX_DAY_OF_YEAR='DEC31'                          ;
+SELECT COUNT(*) FROM INVENTORY_VALUES IV
+     WHERE IV.UNIT_VALUE>0
+     AND IV.EFFECTIVE_START_DATE <= SYSDATE
+     AND IV.EFFECTIVE_END_DATE > SYSDATE                        ;
+SELECT COUNT(*) FROM PRODUCTS P
+     WHERE P.TAXABLE_INVENTORY_FLAG='Y'                         ;
+SELECT COUNT(*) FROM PRODUCT_LOCATIONS LOC
+     WHERE LOC.QUANTITY>0                                       ;
+SELECT COUNT(*) FROM INVENTORY_TAX_RATES ITXR
+     WHERE ITXR.RATE>0
+     AND ITXR.EFFECTIVE_START_DATE <= SYSDATE
+     AND ITXR.EFFECTIVE_END_DATE > SYSDATE                      ;
+SELECT COUNT(*) FROM INVENTORY_VALUES IV
+     WHERE IV.EFFECTIVE_START_DATE <= SYSDATE
+     AND IV.EFFECTIVE_END_DATE > SYSDATE                        ;
+SELECT COUNT(*) FROM INVENTORY_TAX_RATES ITXR
+     WHERE ITXR.EFFECTIVE_START_DATE <= SYSDATE
+     AND ITXR.EFFECTIVE_END_DATE > SYSDATE                      ;
+SELECT COUNT(*) FROM CODE_TRANSLATIONS SPCT
+     WHERE CODE_TYPE = 'StrategicProduct';                      
+SELECT COUNT(*) FROM CODE_TRANSLATIONS TRCT
+     WHERE CODE_TYPE = 'TurnoverRate';                          
+SELECT COUNT(*) FROM CODE_TRANSLATIONS CTCT
+     WHERE CODE_TYPE = 'ConsignmentType';                       
+
+Ch6:
+
+Select /*+ ordered index(MI M_DoubleKeyInd) */ MT.Col1, MT.Col2,...
+...
+FROM B4, C5, C4, A2, B3, C2, C3, D1, D2, 
+M MI, A1, B1, C1, M MT, A3, B5, C6, B2
+WHERE ...
+AND A2.Pkey=MI.FKeyToA2
+AND A1.Pkey=MI.FKeyToA1
+AND MI.Rowid=MT.Rowid
+AND...
+
+Ch7:
+
+SELECT ... FROM ...T1, ... T2, ... T3,... 
+WHERE ... T1.FKey1=T2.PKey2 
+AND T1.FKey1=T3.PKey3 
+AND T2.PKey2=T3.PKey3 ...
+
+SELECT ... FROM ...T1, ... T2, ... T3,... 
+WHERE ... T1.FKey1=T2.PKey2 
+AND T1.FKey2=T3.PKey3 
+AND T2.FKey2=T3.PKey3 ...
+
+SELECT ... FROM ...T1, ... T2, ... T3,... 
+WHERE ... T1.FKey1=T2.PKey2 
+AND T1.FKey2=T3.PKey3 
+AND T2.Col2<IsSomeHowComparedTo>T3.Col3 ...
+
+SELECT ... FROM Orders T1, Customers T2, Salespersons T3
+WHERE T1.Customer_ID=T2.Customer_ID
+AND T1.Salesperson_ID=T3.Salesperson_ID
+AND T2.Region_ID!=T3.Region_ID
+
+SELECT ... FROM ...T1, ... T2, ... T3,... 
+WHERE ... T1.FKey1=T2.PKey2 
+AND T1.FKey2=T3.PKeyColumn1 
+AND T2.FKey3=T3.PkeyColumn2 ...
+
+SELECT TC.Column_Name FROM Indexes Ind, Index_Columns IC, Table_Columns TC
+WHERE Ind.Index_Name='EMPLOYEES_X1'
+AND Ind.Index_ID=IC.Index_ID
+AND Ind.Table_ID=TC.Table_ID
+AND IC.Column_Number=TC.Column_Number
+ORDER BY IC.Index_Position ASC
+
+T2.Paid_Flag != 'Y'
+
+WHERE ... AND O.Order_Type_Code=OTypeTrans.Code(+)
+AND OTypeTrans.Type(+)='ORDER_TYPE'
+
+FROM ... Orders o ...
+LEFT OUTER JOIN Code_Translations Otypetrans
+     ON O.Order_Type_Code=OTypeTrans.Code(+)
+        AND OTypeTrans.Type='ORDER_TYPE'
+
+WHERE ... AND O.Order_Type_Code*=OTypeTrans.Code
+AND OTypeTrans.Type='ORDER_TYPE'
+
+SELECT ... FROM Employees E LEFT OUTER JOIN Departments D ON E.Dept_ID=D.Dept_ID
+WHERE D.Dept_Manager_ID IS NULL
+
+SELECT ... FROM Employees E LEFT OUTER JOIN Departments D ON E.Dept_ID=D.Dept_ID
+WHERE D.Dept_ID IS NULL
+
+SELECT ... FROM Employees e 
+WHERE NOT EXISTS (SELECT * FROM Departments d WHERE e.DeptID=d.DeptID)
+
+SELECT ... FROM Employees E, Departments D 
+WHERE E.Dept_ID*=D.Dept_ID
+AND D.Dept_ID IS NULL
+
+SELECT ... FROM Table1 T1, Table2 T2, Table3 T3
+WHERE T1.FKey2=T2.PKey2(+)
+AND T2.FKey3=T3.PKey3
+
+SELECT ... FROM Departments D LEFT OUTER JOIN Employees E on D.Dept_ID=E.Dept_ID
+
+SELECT ... FROM Departments D, Employees E WHERE D.Dept_ID=E.Dept_ID(+)
+
+SELECT ... FROM Departments D, Employees E WHERE D.Dept_ID*=E.Dept_ID
+
+SELECT ... FROM Departments D 
+WHERE EXISTS (SELECT NULL FROM Employees E
+                          WHERE E.Dept_ID=D.Dept_ID)
+
+SELECT ... FROM Departments D
+WHERE NOT EXISTS (SELECT NULL FROM Employees E
+                          WHERE E.Dept_ID=D.Dept_ID)
+
+SELECT ... FROM Departments D
+WHERE D.Dept_ID IN (SELECT E.Dept_ID FROM Employees E)
+
+SELECT ... FROM Departments D
+WHERE EXISTS (SELECT NULL FROM Employees E 
+                          WHERE E.Dept_ID=D.Dept_ID)
+
+SELECT count(*)
+FROM Order_Details OD, Products P, Shipments S, 
+Addresses A, Code_Translations ODT
+WHERE OD.Product_ID = P.Product_ID
+AND P.Unit_Cost > 100
+AND OD.Shipment_ID = S.Shipment_ID
+AND S.Address_ID = A.Address_ID(+)
+AND OD.Status_Code = ODT.Code
+AND ODT.Code_Type = 'Order_Detail_Status'
+AND S.Shipment_Date > sysdate - 1
+AND EXISTS (SELECT null
+            FROM Orders O, Customers C, Code_Translations OT, Customer_Types CT
+            WHERE C.Customer_Type_ID = CT.Customer_Type_ID
+            AND CT.Text = 'Government'
+AND OD.Order_ID = O.Order_ID
+            AND O.Customer_ID = C.Customer_ID
+            AND O.Status_Code = OT.Code
+            AND O.Completed_Flag = 'N'
+            AND OT.Code_Type = 'ORDER_STATUS'
+            AND OT.Text != 'Canceled')
+ORDER BY P.unit_cost;
+
+SELECT count(*)
+FROM Order_Details OD, Products P, Shipments S, 
+Addresses A, Code_Translations ODT,
+Orders O, Customers C, Code_Translations OT, Customer_Types CT
+WHERE OD.Product_Id = P.Product_Id
+AND P.Unit_Cost > 100
+AND OD.Shipment_Id = S.Shipment_Id
+AND S.Address_Id = A.Address_Id(+)
+AND OD.Status_Code = ODT.Code
+AND ODT.Code_Type = 'Order_Detail_Status'
+AND S.Shipment_Date > sysdate - 1
+            AND C.Customer_Type_Id = CT.Customer_Type_Id
+            AND CT.Text = 'Government'
+            AND OD.Order_Id = O.Order_Id
+            AND O.Customer_Id = C.Customer_Id
+            AND O.Status_Code = OT.Code
+            AND O.Completed_Flag = 'N'
+            AND OT.Code_Type = 'ORDER_STATUS'
+            AND OT.Text != 'Canceled'
+ORDER BY P.Unit_Cost;
+
+SELECT ... FROM ... Outer_Anti_Joined_Table Outer WHERE...
+AND Outer.Some_Key NOT IN (SELECT Inner.Some_Key 
+                          FROM ... Subquery_Anti_Joined_Table Inner WHERE 
+                          <Conditions_And_Joins_On_Subquery_Tables_Only>)
+...
+
+SELECT ... FROM ... Outer_Anti_Joined_Table Outer WHERE...
+AND Outer.Some_Key IS NOT NULL
+AND NOT EXISTS (SELECT null 
+                          FROM ... Subquery_Anti_Joined_Table Inner WHERE 
+                          <Conditions_And_Joins_On_Subquery_Tables_Only>
+                          AND Outer.Some_Key = Inner.Some_Key)
+
+CREATE VIEW Recent_Order_V AS 
+SELECT O.Order_ID, O.Order_Date, O.Customer_ID,
+C.Phone_Number Customer_Main_Phone, C.First_Name Customer_First_Name,
+C.Last_Name Customer_Last_Name,
+C.Address_ID Customer_Address_ID, OT.Text Order_Status
+FROM Orders O, Customers C, Code_Translations OT
+WHERE O.Customer_ID = C.Customer_ID
+AND O.Status_Code = OT.Code
+AND OT.Code_Type = 'ORDER_STATUS' 
+AND O.Order_Date > sysdate - 366;
+
+CREATE VIEW Shipment_V AS 
+SELECT A.Address_ID Shipment_Address_ID,
+A.Street_Addr_Line1 Shipment_Street_Address_Line1,
+A.Street_Addr_Line2 Shipment_Street_Address_Line2,
+A.City_Name Shipment_City_Name, A.State_Abbreviation Shipment_State,
+A.ZIP_Code Shipment_ZIP,  S.Shipment_Date, S.Shipment_ID
+FROM Shipments S, Addresses A
+WHERE S.Address_ID = A.Address_ID;
+
+SELECT OV.Customer_Main_Phone, C.Honorific,
+OV.Customer_First_Name, OV.Customer_Last_Name, C.Suffix,
+OV.Customer_Address_ID, SV.Shipment_Address_ID,
+SV.Shipment_Street_Address_Line1, SV.Shipment_Street_Address_Line2,
+SV.Shipment_City_Name, SV.Shipment_State, SV.Shipment_Zip,
+OD.Deferred_Ship_Date, OD.Item_Count, ODT.Text,
+P.Prod_Description, SV.Shipment_Date 
+FROM Recent_Order_V OV, Order_Details OD, Products P, Shipment_V SV, 
+Code_Translations ODT, Customers C
+WHERE upper(OV.Customer_Last_Name) Like 'x'||'%'
+AND upper(OV.Customer_First_Name) Like 'y'||'%'
+AND OD.Order_ID = OV.Order_ID
+AND OV.Customer_ID = C.Customer_ID
+AND OD.Product_ID = P.Product_ID(+)
+AND OD.Shipment_ID = SV.Shipment_ID(+)
+AND OD.Status_Code = ODT.Code
+AND ODT.Code_Type = 'ORDER_DETAIL_STATUS'
+ORDER BY OV.Customer_ID, OV.Order_ID Desc, SV.Shipment_ID, OD.Order_Detail_ID;
+
+SELECT OV.Customer_Main_Phone, C.Honorific, OV.Customer_First_Name,
+OV.Customer_Last_Name, C.Suffix, OV.Customer_Address_ID,
+A.Address_ID Shipment_Address_ID,
+A.Street_Addr_Line1 Shipment_Street_Address_Line1, A.Street_Addr_Line2
+Shipment_Street_Address_Line2, A.City_Name Shipment_City_Name,
+A.State_Abbreviation Shipment_State, A.ZIP_Code Shipment_ZIP,
+OD.Deferred_Ship_Date, OD.Item_Count, ODT.Text,
+P.Prod_Description, S.Shipment_Date 
+FROM Recent_Order_V OV, Order_Details OD, Products P, Shipments S, Addresses A,
+Code_Translations ODT, Customers C
+WHERE upper(OV.Customer_Last_Name) Like 'z'||'%'
+AND upper(OV.Customer_First_Name) Like 'x'||'%'
+AND OD.Order_ID = OV.Order_ID
+AND OV.Customer_ID = C.Customer_ID
+AND OD.Product_ID = P.Product_ID(+)
+AND OD.Shipment_ID = S.Shipment_ID(+)
+AND S.Address_ID = A.Address_ID(+)
+AND OD.Status_Code = ODT.Code
+AND ODT.Code_Type = 'ORDER_DETAIL_STATUS'
+ORDER BY OV.Customer_ID, OV.Order_ID Desc, S.Shipment_ID, OD.Order_Detail_ID
+
+SELECT OV.Customer_Main_Phone, C.Honorific, OV.Customer_First_Name,
+OV.Customer_Last_Name, C.Suffix, OV.Customer_Address_ID,
+A.Address_ID Shipment_Address_ID,
+A.Street_Addr_Line1 Shipment_Street_Address_Line1,
+A.Street_Addr_Line2 Shipment_Street_Address_Line2,
+A.City_Name Shipment_City_Name, A.State_Abbreviation Shipment_State,
+A.ZIP_Code Shipment_ZIP,
+OD.Deferred_Ship_Date, OD.Item_Count, ODT.Text, P.Prod_Description, 
+DECODE(A.Address_ID, NULL, TO_DATE(NULL), S.Shipment_Date) Shipment_Date 
+FROM Recent_Order_V OV, Order_Details OD, Products P, Shipments S, Addresses A,
+Code_Translations ODT, Customers C
+WHERE upper(OV.Customer_Last_Name) Like 'x'||'%'
+AND upper(OV.Customer_First_Name) Like 'z'||'%'
+AND OD.Order_ID = OV.Order_ID
+AND OV.Customer_ID = C.Customer_ID
+AND OD.Product_ID = P.Product_ID(+)
+AND OD.Shipment_ID = S.Shipment_ID(+)
+AND S.Address_ID = A.Address_ID(+)
+AND OD.Status_Code = ODT.Code
+AND ODT.Code_Type = 'ORDER_DETAIL_STATUS'
+ORDER BY OV.Customer_ID, OV.Order_ID Desc, 
+DECODE(A.Address_ID, NULL, TO_NUMBER(NULL), S.Shipment_ID), 
+OD.Order_Detail_ID
+
+CREATE VIEW Order_Detail_V AS 
+SELECT A.Address_ID Shipment_Address_ID,
+A.Street_Addr_Line1 Shipment_Street_Address_Line1,
+A.Street_Addr_Line2 Shipment_Street_Address_Line2,
+A.City_Name Shipment_City_Name, A.State_Abbreviation Shipment_State,
+A.ZIP_Code Shipment_ZIP,  S.Shipment_Date, S.Shipment_ID,
+OD.Deferred_Ship_Date, OD.Item_Count, OD.Order_ID,
+OD.Order_Detail_ID, OD.Product_ID, OD.Status_Code
+FROM Shipments S, Addresses A, Order_Details OD
+WHERE OD.Shipment_ID = S.Shipment_ID(+)
+AND S.Address_ID = A.Address_ID(+)
+;
+
+SELECT OV.Customer_Main_Phone, C.Honorific, OV.Customer_First_Name,
+OV.Customer_Last_Name, C.Suffix, OV.Customer_Address_ID,
+ODV.Shipment_Address_ID, ODV.Shipment_Street_Address_Line1,
+ODV.Shipment_Street_Address_Line2, ODV.Shipment_City_Name,
+ODV.Shipment_State, ODV.Shipment_Zip, ODV.Deferred_Ship_Date,
+ODV.Item_Count, ODT.Text, P.Prod_Description, ODV.Shipment_Date 
+FROM Recent_Order_V OV, Order_Detail_V ODV, Products P,
+Code_Translations ODT, Customers C
+WHERE upper(OV.Customer_Last_Name) Like 'x'||'%'
+AND upper(OV.Customer_First_Name) Like 'z'||'%'
+AND ODV.Order_ID = OV.Order_ID
+AND OV.Customer_ID = C.Customer_ID
+AND ODV.Product_ID = P.Product_ID(+)
+AND ODV.Status_Code = ODT.Code
+AND ODT.Code_Type = 'ORDER_DETAIL_STATUS'
+ORDER BY OV.Customer_ID, OV.Order_ID Desc, ODV.Shipment_ID, ODV.Order_Detail_ID
+
+SELECT Employee_ID FROM Employees1
+INTERSECT
+SELECT Employee_ID FROM Employees2
+;
+
+SELECT DISTINCT Employee_ID FROM Employees1 E1
+WHERE EXISTS (SELECT null FROM Employees2 E2
+              WHERE E1.Employee_ID=E2.Employee_ID)
+;
+
+SELECT Employee_ID, Manager_ID FROM Employees1
+INTERSECT
+SELECT Employee_ID, Manager_ID FROM Employees2
+;
+
+SELECT DISTINCT Employee_ID, Manager_ID FROM Employees1 E1
+WHERE EXISTS (SELECT null FROM Employees2 E2
+              WHERE E1.Employee_ID=E2.Employee_ID
+              AND NVL(E1.Manager_ID,-1)=NVL(E2.Manager_ID,-1))
+;
+
+SELECT Employee_ID FROM Employees1
+MINUS
+SELECT Employee_ID FROM Employees2
+;
+
+SELECT DISTINCT Employee_ID FROM Employees1 E1
+WHERE NOT EXISTS (SELECT null FROM Employees2 E2
+                  WHERE E1.Employee_ID=E2.Employee_ID)
+;
+
+Ch9:
+SELECT count(*) FROM Shipments S, Order_Details OD, Orders O
+WHERE O.Order_ID=OD.Order_ID
+AND OD.Shipment_ID=S.Shipment_ID
+AND O.Customer_ID=:1
+AND OD.Product_ID=:2
+AND S.Shipment_Date>:3
+
+AppD:
+
+SELECT C.Phone_Number, C.Honorific, C.First_Name, C.Last_Name, C.Suffix,
+C.Address_ID, A.Address_ID, A.Street_Addr_Line1, A.Street_Addr_Line2,
+A.City_Name, A.State_Abbreviation, A.ZIP_Code, OD.Deferred_Ship_Date,
+OD.Item_Count, P.Prod_Description, S.Shipment_Date 
+FROM Orders O, Order_Details OD, Products P, Customers C, Shipments S, 
+Addresses A
+WHERE OD.Order_ID = O.Order_ID
+AND O.Customer_ID = C.Customer_ID
+AND OD.Product_ID = P.Product_ID
+AND OD.Shipment_ID = S.Shipment_ID
+AND S.Address_ID = A.Address_ID
+AND C.Phone_Number = 6505551212
+AND O.Business_Unit_ID = 10
+ORDER BY C.Customer_ID, O.Order_ID Desc, S.Shipment_ID, OD.Order_Detail_ID;
+
+
+
+SELECT SUM(COUNT(Phone_Number)*COUNT(Phone_Number))/
+             (SUM(COUNT(Phone_Number))*SUM(COUNT(*))) 
+     FROM Customers GROUP BY Phone_Number;
+
+SELECT COUNT(*) FROM Customers;
+
+SELECT SUM(COUNT(Business_Unit_ID)*COUNT(Business_Unit_ID))/
+             (SUM(COUNT(Business_Unit_ID))*SUM(COUNT(*))) 
+     FROM Orders GROUP BY Business_Unit_ID;
+
+SELECT COUNT(*) FROM Orders;
+
+SELECT COUNT(*) FROM Orders O, Customers C 
+     WHERE O.Customer_ID = C.Customer_ID;
+
+SELECT COUNT(*) FROM Order_Details;
+
+SELECT COUNT(*) FROM Orders O, Order_Details OD 
+     WHERE OD.Order_ID = O.Order_ID;
+
+SELECT COUNT(*) FROM Shipments;
+
+SELECT COUNT(*) FROM Shipments S, Order_Details OD 
+     WHERE OD.Shipment_ID = S.Shipment_ID;
+
+SELECT COUNT(*) FROM Products;
+
+SELECT COUNT(*) FROM Products P, Order_Details OD 
+     WHERE OD.Product_ID = P.Product_ID;
+
+SELECT COUNT(*) FROM Addresses;
+
+SELECT COUNT(*) FROM Addresses A, Shipments S 
+     WHERE S.Address_ID = A.Address_ID;

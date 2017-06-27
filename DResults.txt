@@ -1,0 +1,184 @@
+Output from testing for all three database vendors for the Appendix B example:
+
+App B initial statement, CBO:
+SQL> @ex
+
+
+PLAN
+--------------------------------------------------------------------------------
+SELECT STATEMENT
+  SORT ORDER BY
+    HASH JOIN
+      TABLE ACCESS FULL 3*PRODUCTS
+      HASH JOIN
+        HASH JOIN
+          HASH JOIN
+            HASH JOIN
+              TABLE ACCESS FULL 4*CUSTOMERS
+              TABLE ACCESS FULL 1*ORDERS
+            TABLE ACCESS FULL 2*ORDER_DETAILS
+          TABLE ACCESS FULL 5*SHIPMENTS
+        TABLE ACCESS FULL 6*ADDRESSES                                          
+SQL> @tmp 
+SQL> /
+
+PHONE_NUMBER         HONORIFIC       FIRST_NAME
+-------------------- --------------- ----------------------------------------
+LAST_NAME                                SUFFIX     ADDRESS_ID ADDRESS_ID
+---------------------------------------- ---------- ---------- ----------
+STREET_ADDRESS_LINE1
+------------------------------------------------------------
+STREET_ADDRESS_LINE2
+------------------------------------------------------------
+CITY_NAME                                          ST   ZIP_CODE DEFERRED_
+-------------------------------------------------- -- ---------- ---------
+ITEM_COUNT PRODUCT_DESCRIPTION
+---------- ------------------------------------------------------------
+SHIPMENT_
+---------
+6505551212           M.              Tracy950
+Smith950                                                100485     100485
+100485 Amy Ave.
+
+ABCVille485                                        24      48500
+         1 Widget11880
+06-JUN-03
+                             
+6505551212           M.              Tracy950
+Smith950                                                100485     100485
+100485 Amy Ave.
+
+ABCVille485                                        24      48500
+         1 Widget11881
+06-JUN-03
+
+6505551212           M.              Tracy950
+Smith950                                                100485     100485
+100485 Amy Ave.
+
+ABCVille485                                        24      48500
+         1 Widget11882
+06-JUN-03
+
+Elapsed: 00:00:08.76
+SQL>                  
+With quotes around the phone number:
+SQL> @ex
+
+
+PLAN
+--------------------------------------------------------------------------------
+SELECT STATEMENT
+  SORT ORDER BY
+    NESTED LOOPS
+      NESTED LOOPS
+        NESTED LOOPS
+          NESTED LOOPS
+            NESTED LOOPS
+              TABLE ACCESS BY INDEX ROWID 4*CUSTOMERS
+                INDEX RANGE SCAN CUSTOMER_PHONE_NUMBER
+              TABLE ACCESS BY INDEX ROWID 1*ORDERS
+                INDEX RANGE SCAN ORDER_CUSTOMER_ID
+            TABLE ACCESS BY INDEX ROWID 2*ORDER_DETAILS
+              INDEX RANGE SCAN ORDER_DETAIL_ORDER_ID
+          TABLE ACCESS BY INDEX ROWID 5*SHIPMENTS
+            INDEX UNIQUE SCAN SHIPMENT_PKEY
+        TABLE ACCESS BY INDEX ROWID 3*PRODUCTS
+          INDEX UNIQUE SCAN PRODUCT_PKEY
+      TABLE ACCESS BY INDEX ROWID 6*ADDRESSES
+        INDEX UNIQUE SCAN ADDRESS_PKEY                     
+
+runtime:
+
+Elapsed: 00:00:00.04
+SQL> 
+rule based: no change to plan, except that last two change places in
+the join order
+
+Returning to unquoted phone number on rbo:
+
+PLAN
+--------------------------------------------------------------------------------
+SELECT STATEMENT
+  SORT ORDER BY
+    NESTED LOOPS
+      NESTED LOOPS
+        NESTED LOOPS
+          NESTED LOOPS
+            NESTED LOOPS
+              TABLE ACCESS FULL 4*CUSTOMERS
+              TABLE ACCESS BY INDEX ROWID 1*ORDERS
+                INDEX RANGE SCAN ORDER_CUSTOMER_ID
+            TABLE ACCESS BY INDEX ROWID 2*ORDER_DETAILS
+              INDEX RANGE SCAN ORDER_DETAIL_ORDER_ID
+          TABLE ACCESS BY INDEX ROWID 5*SHIPMENTS
+            INDEX UNIQUE SCAN SHIPMENT_PKEY
+        TABLE ACCESS BY INDEX ROWID 6*ADDRESSES
+          INDEX UNIQUE SCAN ADDRESS_PKEY
+      TABLE ACCESS BY INDEX ROWID 3*PRODUCTS
+        INDEX UNIQUE SCAN PRODUCT_PKEY  
+
+Runtime:
+
+Elapsed: 00:00:02.46   
+
+App B fixed statement, DB2:
+
+$ cat head.sql tmp.sql tail.sql | db2 +c +p -t
+DB20000I  The SQL command completed successfully.
+DB20000I  The SQL command completed successfully.
+
+OPERATOR_ID TARGET_ID OPERATOR_TYPE OBJECT_NAME        COST
+----------- --------- ------------- ------------------ -----------
+          1         - RETURN        -                          260
+          2         1 NLJOIN        -                          260
+          3         2 NLJOIN        -                          235
+          4         3 NLJOIN        -                          210
+          5         4 TBSCAN        -                          185
+          6         5 SORT          -                          185
+          7         6 NLJOIN        -                          185
+          8         7 NLJOIN        -                          135
+          9         8 FETCH         CUSTOMERS                   75
+         10         9 IXSCAN        CUST_PH_NUMBER              50
+         11         8 FETCH         ORDERS                      70
+         12        11 IXSCAN        ORDER_CUST_ID               50
+         13         7 FETCH         ORDER_DETAILS               75
+         14        13 IXSCAN        ORDER_DTL_ORD_ID            50
+         15         4 FETCH         PRODUCTS                    50
+         16        15 IXSCAN        PRODUCT_PKEY                25
+         17         3 FETCH         SHIPMENTS                   75
+         18        17 IXSCAN        SHIPMENT_PKEY               50
+         19         2 FETCH         ADDRESSES                   75
+         20        19 IXSCAN        ADDRESS_PKEY                50
+
+  20 record(s) selected.
+
+DB20000I  The SQL command completed successfully.
+$                             
+
+On SQL Server, *both* forms, even with no quotes around phone #:
+
+StmtText                                                                                                                                                                                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+  |--Bookmark Lookup(BOOKMARK:([Bmk1002]), OBJECT:([tfdbdict_dev].[dbo].[Products] AS [P]))
+       |--Nested Loops(Inner Join)
+            |--Bookmark Lookup(BOOKMARK:([Bmk1005]), OBJECT:([tfdbdict_dev].[dbo].[Addresses] AS [A]))
+            |    |--Nested Loops(Inner Join)
+            |         |--Sort(ORDER BY:([O].[Customer_ID] ASC, [O].[Order_ID] DESC, [OD].[Shipment_ID] ASC, [OD].[Order_Detail_ID] ASC))
+            |         |    |--Bookmark Lookup(BOOKMARK:([Bmk1004]), OBJECT:([tfdbdict_dev].[dbo].[Shipments] AS [S]))
+            |         |         |--Nested Loops(Inner Join)
+            |         |              |--Bookmark Lookup(BOOKMARK:([Bmk1001]), OBJECT:([tfdbdict_dev].[dbo].[Order_Details] AS [OD]))
+            |         |              |    |--Nested Loops(Inner Join)
+            |         |              |         |--Filter(WHERE:([O].[Business_Unit_ID]=10))
+            |         |              |         |    |--Bookmark Lookup(BOOKMARK:([Bmk1000]), OBJECT:([tfdbdict_dev].[dbo].[Orders] AS [O]))
+            |         |              |         |         |--Nested Loops(Inner Join)
+            |         |              |         |              |--Bookmark Lookup(BOOKMARK:([Bmk1003]), OBJECT:([tfdbdict_dev].[dbo].[Customers] AS [C]))
+            |         |              |         |              |    |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Customers].[Customer_Phone_Number] AS [C]), SEEK:([C].[Phone_Number]='6505551212') ORDERED)
+            |         |              |         |              |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Orders].[Order_Customer_ID] AS [O]), SEEK:([O].[Customer_ID]=[C].[Customer_ID]) ORDERED)
+            |         |              |         |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Order_Details].[Order_Detail_Order_ID] AS [OD]), SEEK:([OD].[Order_ID]=[O].[Order_ID]) ORDERED)
+            |         |              |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Shipments].[Shipment_PKey] AS [S]), SEEK:([S].[Shipment_ID]=[OD].[Shipment_ID]) ORDERED)
+            |         |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Addresses].[Address_PKey] AS [A]), SEEK:([A].[Address_ID]=[S].[Address_ID]) ORDERED)
+            |--Index Seek(OBJECT:([tfdbdict_dev].[dbo].[Products].[Product_PKey] AS [P]), SEEK:([P].[Product_ID]=[OD].[Product_ID]) ORDERED)
+
+(19 row(s) affected)
+
